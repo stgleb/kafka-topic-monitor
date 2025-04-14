@@ -58,6 +58,7 @@ func (m *Monitor) Start(ctx context.Context) {
 				continue // Proceed to the next iteration
 			}
 			for _, topic := range topics {
+				// TODO(stgleb): process all topics. Find out last write/reads timestamp.
 				GetLogger().Infof("topic: %s\n", topic)
 			}
 			// TODO(stgleb): write report here.
