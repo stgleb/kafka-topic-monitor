@@ -1,0 +1,4 @@
+bootstrap_servers:
+  - "localhost:9092"
+inactivity_days: 1
+log_level: "info"
