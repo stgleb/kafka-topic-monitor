@@ -19,6 +19,22 @@ services:
       - KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP=CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
       - KAFKA_CFG_CONTROLLER_LISTENER_NAMES=CONTROLLER
       - KAFKA_CFG_INTER_BROKER_LISTENER_NAME=PLAINTEXT  # Inter-broker communication use PLAINTEXT
+    healthcheck:
+      test: ["CMD", "bash", "-c", "kafka-topics.sh --bootstrap-server localhost:9092 --list || exit 1"]
+      interval: 30s      # Check every 30 seconds
+      timeout: 10s       # Timeout for health check
+      retries: 3        # Retry 3 times before marking as unhealthy
+
+  monitor:
+    depends_on:
+      kafka:
+        condition: service_healthy  # Wait for Kafka to be healthy before starting the monitor
+    image: monitor:latest  # Use the built image
+    ports:
+      - "8080:8080"        # Map port 8080 of the host to port 8080 of the container
+    environment:
+      # Add any necessary environment variables for the monitor service
+      KAFKA_BOOTSTRAP_SERVERS: "kafka:9092"  # Assuming your Kafka service is named kafk
 
 volumes:
   kafka_data:

@@ -96,6 +96,7 @@ func (m *Monitor) Start(ctx context.Context) {
 			}
 			var topicActivityInfos []*TopicActivityInfo
 			for _, topic := range topics {
+				// TODO(stgleb): Check topics in parallel.
 				GetLogger().Infof("topic: %s\n", topic)
 				info, err := m.checker.CheckTopic(ctx, topic, m.client, m.admin)
 				if err != nil {
@@ -103,6 +104,7 @@ func (m *Monitor) Start(ctx context.Context) {
 					continue
 				}
 				info.Active = isActive(info.LastWriteTime, info.LastReadTime, m.InactivityDays)
+				info.TopicName = topic
 				topicActivityInfos = append(topicActivityInfos, info)
 			}
 			report, err := m.reporter.Report(topicActivityInfos)

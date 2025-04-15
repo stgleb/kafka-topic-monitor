@@ -38,8 +38,8 @@ func StartHTTPServer(ctx context.Context, listenAddr string, queryChan chan chan
 	server := &http.Server{
 		Addr:         listenAddr,
 		Handler:      router,
-		ReadTimeout:  15 * time.Second,
-		WriteTimeout: 15 * time.Second,
+		ReadTimeout:  30 * time.Second,
+		WriteTimeout: 30 * time.Second,
 		IdleTimeout:  60 * time.Second,
 	}
 
