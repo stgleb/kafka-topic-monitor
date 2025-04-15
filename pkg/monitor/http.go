@@ -64,7 +64,7 @@ func StartHTTPServer(ctx context.Context, listenAddr string, queryChan chan chan
 		defer cancel()
 
 		if err := server.Shutdown(shutdownCtx); err != nil {
-			GetLogger().Errorf("error shutting down server: %w", err)
+			GetLogger().Errorf("error shutting down server: %v", err)
 		}
 
 		GetLogger().Errorf("HTTP server shutdown complete")

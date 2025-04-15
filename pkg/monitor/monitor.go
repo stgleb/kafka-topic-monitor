@@ -3,6 +3,7 @@ package monitor
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/IBM/sarama"
 
@@ -35,7 +36,11 @@ type Reporter interface {
 // NewMonitor creates a new Monitor instance
 func NewMonitor(servers []string, inActivityDays int, ListenAddr string, checker TopicChecker, reporter Reporter) (*Monitor, error) {
 	config := sarama.NewConfig()
-	config.Version = sarama.V2_8_0_0 // Specify supported Kafka version
+	config.Version = sarama.V4_0_0_0
+	config.Consumer.Offsets.Initial = sarama.OffsetOldest
+	config.Consumer.Offsets.AutoCommit.Enable = false
+	config.Net.SASL.Enable = false
+	config.Net.TLS.Enable = false
 
 	client, err := sarama.NewClient(servers, config)
 	if err != nil {
@@ -97,6 +102,7 @@ func (m *Monitor) Start(ctx context.Context) {
 					GetLogger().Errorf("failed to check topic %s: %v", topic, err)
 					continue
 				}
+				info.Active = isActive(info.LastWriteTime, info.LastReadTime, m.InactivityDays)
 				topicActivityInfos = append(topicActivityInfos, info)
 			}
 			report, err := m.reporter.Report(topicActivityInfos)
@@ -118,4 +124,15 @@ func (m *Monitor) Close() {
 	if err := m.admin.Close(); err != nil {
 		GetLogger().Infof("Error closing Kafka admin: %v\n", err)
 	}
+}
+
+// isActive checks if the topic is active based on the last write and read times.
+func isActive(lastWriteTime, lastReadTime time.Time, inactivityDays int) bool {
+	// Check if the topic is active based on the last write and read times
+	if lastWriteTime.IsZero() && lastReadTime.IsZero() {
+		return false
+	}
+
+	inactivityDuration := time.Duration(inactivityDays) * 24 * time.Hour
+	return time.Since(lastWriteTime) < inactivityDuration || time.Since(lastReadTime) < inactivityDuration
 }

@@ -26,7 +26,7 @@ func (r *CsvReporter) Report(topicActivityInfos []*TopicActivityInfo) ([]byte, e
 	csvWriter := csv.NewWriter(&buf)
 
 	// Write the header row
-	header := []string{"LastWriteTime", "LastReadTime", "PartitionNumber"}
+	header := []string{"LastWriteTime", "LastReadTime", "PartitionNumber", "Active"}
 	if err := csvWriter.Write(header); err != nil {
 		return nil, fmt.Errorf("error writing CSV header: %w", err)
 	}
@@ -40,6 +40,7 @@ func (r *CsvReporter) Report(topicActivityInfos []*TopicActivityInfo) ([]byte, e
 			activity.LastWriteTime.Format(timeFormat),
 			activity.LastReadTime.Format(timeFormat),
 			strconv.Itoa(activity.PartitionNumber),
+			strconv.FormatBool(activity.Active),
 		}
 
 		if err := csvWriter.Write(row); err != nil {

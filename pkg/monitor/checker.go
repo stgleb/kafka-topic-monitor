@@ -13,6 +13,7 @@ type TopicActivityInfo struct {
 	LastWriteTime   time.Time // Time when last message was written to any partition.
 	LastReadTime    time.Time // Time when message was consumed by any consumer group.
 	PartitionNumber int       // Number of partitions in topic.
+	Active          bool      // Indicates if the topic is active (has recent activity).
 }
 
 type KafkaTopicChecker struct{}
@@ -57,6 +58,14 @@ func getLastWrite(kafkaClient sarama.Client, topicName string, partitions []int3
 
 	// Find the latest message offsets (last write) among partitions.
 	for _, partition := range partitions {
+		oldestOffset, err := kafkaClient.GetOffset(topicName, partition, sarama.OffsetOldest)
+		newestOffset, err := kafkaClient.GetOffset(topicName, partition, sarama.OffsetNewest)
+
+		// Check if there are any messages
+		if newestOffset <= oldestOffset {
+			return time.Time{}, fmt.Errorf("no messages in partition %d", partition)
+		}
+
 		// Create a consumer
 		consumer, err := sarama.NewConsumerFromClient(kafkaClient)
 		if err != nil {
@@ -65,7 +74,7 @@ func getLastWrite(kafkaClient sarama.Client, topicName string, partitions []int3
 		defer consumer.Close()
 
 		// Create a partition consumer
-		partitionConsumer, err := consumer.ConsumePartition(topicName, partition, sarama.OffsetNewest)
+		partitionConsumer, err := consumer.ConsumePartition(topicName, partition, sarama.OffsetNewest-1)
 		if err != nil {
 			return time.Time{}, fmt.Errorf("failed to consume from partition %d: %w", partition, err)
 		}
