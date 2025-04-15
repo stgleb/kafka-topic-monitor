@@ -36,7 +36,7 @@ func StartHTTPServer(ctx context.Context, listenAddr string, queryChan chan chan
 
 	// Create the server
 	server := &http.Server{
-		Addr:         fmt.Sprintf(":%d"),
+		Addr:         listenAddr,
 		Handler:      router,
 		ReadTimeout:  15 * time.Second,
 		WriteTimeout: 15 * time.Second,

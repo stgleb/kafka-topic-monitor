@@ -55,6 +55,7 @@ func NewMonitor(servers []string, inActivityDays int, ListenAddr string, checker
 		client:         client,
 		admin:          admin,
 		checker:        checker,
+		reporter:       reporter,
 		reportTaskChan: make(chan chan []byte),
 	}, nil
 }
