@@ -32,7 +32,7 @@ func main() {
 
 	reporter := monitor.NewCsvReporter()
 	checker := monitor.NewTopicChecker()
-	m, err := monitor.NewMonitor(cfg.BootstrapServers, checker, reporter)
+	m, err := monitor.NewMonitor(cfg.BootstrapServers, cfg.InactivityDays, cfg.Addr, checker, reporter)
 	if err != nil {
 		logger.GetLogger().Fatalf("Error creating monitor: %v", err)
 	}

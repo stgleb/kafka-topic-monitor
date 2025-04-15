@@ -12,8 +12,11 @@ import (
 // Monitor struct to manage Kafka connections and operations
 type Monitor struct {
 	BootstrapServers []string
-	client           sarama.Client
-	admin            sarama.ClusterAdmin
+	ListenAddr       string
+	InactivityDays   int
+
+	client sarama.Client
+	admin  sarama.ClusterAdmin
 
 	checker  TopicChecker
 	reporter Reporter
@@ -30,7 +33,7 @@ type Reporter interface {
 }
 
 // NewMonitor creates a new Monitor instance
-func NewMonitor(servers []string, checker TopicChecker, reporter Reporter) (*Monitor, error) {
+func NewMonitor(servers []string, inActivityDays int, ListenAddr string, checker TopicChecker, reporter Reporter) (*Monitor, error) {
 	config := sarama.NewConfig()
 	config.Version = sarama.V2_8_0_0 // Specify supported Kafka version
 
@@ -46,10 +49,13 @@ func NewMonitor(servers []string, checker TopicChecker, reporter Reporter) (*Mon
 
 	return &Monitor{
 		BootstrapServers: servers,
-		client:           client,
-		admin:            admin,
-		checker:          checker,
-		reportTaskChan:   make(chan chan []byte),
+		ListenAddr:       ListenAddr,
+		InactivityDays:   inActivityDays,
+
+		client:         client,
+		admin:          admin,
+		checker:        checker,
+		reportTaskChan: make(chan chan []byte),
 	}, nil
 }
 
@@ -64,18 +70,22 @@ func (m *Monitor) ListTopics() ([]string, error) {
 
 // Start initiates the monitoring loop
 func (m *Monitor) Start(ctx context.Context) {
-	fmt.Println("Starting Kafka Monitor...")
+	GetLogger().Infof("Starting Kafka Monitor...")
 	defer m.Close() // Ensure the client is closed when exiting the loop
+	// Start the HTTP server
+	if err := StartHTTPServer(ctx, m.ListenAddr, m.reportTaskChan); err != nil {
+		GetLogger().Fatalf("Failed to start HTTP server: %v\n", err)
+	}
 	for {
 		select {
 		case <-ctx.Done():
-			fmt.Println("Shutdown signal received.")
+			GetLogger().Infof("Shutdown signal received.")
 			m.Close()
 			return
 		case reportChan := <-m.reportTaskChan:
 			topics, err := m.ListTopics()
 			if err != nil {
-				fmt.Printf("Failed to list topics: %v\n", err)
+				GetLogger().Infof("Failed to list topics: %v\n", err)
 				continue // Proceed to the next iteration
 			}
 			var topicActivityInfos []*TopicActivityInfo
@@ -101,10 +111,10 @@ func (m *Monitor) Start(ctx context.Context) {
 // Close shuts down the Kafka client connection
 func (m *Monitor) Close() {
 	if err := m.client.Close(); err != nil {
-		fmt.Printf("Error closing Kafka client: %v\n", err)
+		GetLogger().Infof("Error closing Kafka client: %v\n", err)
 	}
 
 	if err := m.admin.Close(); err != nil {
-		fmt.Printf("Error closing Kafka admin: %v\n", err)
+		GetLogger().Infof("Error closing Kafka admin: %v\n", err)
 	}
 }

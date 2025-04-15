@@ -19,6 +19,7 @@ type Config struct {
 	BootstrapServers []string `yaml:"bootstrap_servers"`
 	InactivityDays   int      `yaml:"inactivity_days"`
 	LogLevel         string   `yaml:"log_level"`
+	Addr             string   `yaml:"addr"`
 }
 
 // LoadConfig loads configuration from a YAML file or from environment variables
@@ -37,6 +38,15 @@ func LoadConfig(configFileName string) (*Config, error) {
 	if config.BootstrapServers == nil {
 		return nil, ErrEmptyBootstrapServers
 	}
+
+	if config.InactivityDays < 0 {
+		return nil, fmt.Errorf("inactivity days must be non-negative")
+	}
+
+	if config.Addr == "" {
+		config.Addr = ":8080"
+	}
+
 	return &config, nil
 }
 
@@ -51,6 +61,10 @@ func loadFromEnv(config Config) {
 		if _, err := fmt.Sscanf(inactivityDays, "%d", &value); err == nil {
 			config.InactivityDays = value
 		}
+	}
+
+	if listenAddr := os.Getenv("LISTEN_ADDR"); listenAddr != "" {
+		config.Addr = listenAddr
 	}
 }
 
