@@ -1,4 +1,4 @@
-package monitor
+package report
 
 import (
 	"bytes"
@@ -9,10 +9,6 @@ import (
 )
 
 type CsvReporter struct{}
-
-var (
-	_ Reporter = &CsvReporter{}
-)
 
 func NewCsvReporter() *CsvReporter {
 	return &CsvReporter{}

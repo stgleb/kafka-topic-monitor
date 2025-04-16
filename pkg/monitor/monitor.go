@@ -3,11 +3,13 @@ package monitor
 import (
 	"context"
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/IBM/sarama"
 
 	. "kafka-topic-monitor/pkg/logger"
+	"kafka-topic-monitor/pkg/monitor/report"
 )
 
 // Monitor struct to manage Kafka connections and operations
@@ -26,11 +28,11 @@ type Monitor struct {
 }
 
 type TopicChecker interface {
-	CheckTopic(context.Context, string, sarama.Client, sarama.ClusterAdmin) (*TopicActivityInfo, error)
+	CheckTopic(context.Context, string, sarama.Client, sarama.ClusterAdmin) (*report.TopicActivityInfo, error)
 }
 
 type Reporter interface {
-	Report([]*TopicActivityInfo) ([]byte, error)
+	Report([]*report.TopicActivityInfo) ([]byte, error)
 }
 
 // NewMonitor creates a new Monitor instance
@@ -94,25 +96,34 @@ func (m *Monitor) Start(ctx context.Context) {
 				GetLogger().Infof("Failed to list topics: %v\n", err)
 				continue // Proceed to the next iteration
 			}
-			var topicActivityInfos []*TopicActivityInfo
+			var (
+				resultChan = make(chan *report.TopicActivityInfo, len(topics))
+				wg         sync.WaitGroup
+			)
+			wg.Add(len(topics))
 			for _, topic := range topics {
-				// TODO(stgleb): Check topics in parallel.
-				GetLogger().Infof("topic: %s\n", topic)
-				info, err := m.checker.CheckTopic(ctx, topic, m.client, m.admin)
-				if err != nil {
-					GetLogger().Errorf("failed to check topic %s: %v", topic, err)
-					continue
-				}
-				info.Active = isActive(info.LastWriteTime, info.LastReadTime, m.InactivityDays)
-				info.TopicName = topic
-				topicActivityInfos = append(topicActivityInfos, info)
+				go func() {
+					defer wg.Done()
+					info, err := m.checker.CheckTopic(ctx, topic, m.client, m.admin)
+					if err != nil {
+						GetLogger().Errorf("failed to check topic %s: %v", topic, err)
+						return
+					}
+					info.Active = isActive(info.LastWriteTime, info.LastReadTime, m.InactivityDays)
+					info.TopicName = topic
+					resultChan <- info
+				}()
 			}
-			report, err := m.reporter.Report(topicActivityInfos)
+
+			wg.Wait()
+			topicActivityInfos := drainChannel[*report.TopicActivityInfo](resultChan)
+
+			reportBytes, err := m.reporter.Report(topicActivityInfos)
 			if err != nil {
 				GetLogger().Errorf("failed to report topics: %v", err)
 				continue
 			}
-			reportChan <- report
+			reportChan <- reportBytes
 		}
 	}
 }
@@ -137,4 +148,22 @@ func isActive(lastWriteTime, lastReadTime time.Time, inactivityDays int) bool {
 
 	inactivityDuration := time.Duration(inactivityDays) * 24 * time.Hour
 	return time.Since(lastWriteTime) < inactivityDuration || time.Since(lastReadTime) < inactivityDuration
+}
+
+func drainChannel[T any](ch chan T) []T {
+	var result []T
+
+	for {
+		select {
+		case val, ok := <-ch:
+			if !ok {
+				// Channel is closed
+				return result
+			}
+			result = append(result, val)
+		default:
+			// No more messages available right now
+			return result
+		}
+	}
 }

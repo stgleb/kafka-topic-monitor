@@ -22,7 +22,6 @@ FROM scratch
 
 # Copy the binary into the scratch container
 COPY --from=builder /app/monitor /monitor
-COPY config-compose.yml /config/config.yaml
 
 # Set the command to run the application
-ENTRYPOINT ["/monitor", "--config-file", "/config/config.yaml"]
+ENTRYPOINT ["/monitor", "-bootstrap-servers", "kafka:9092", "-inactivity-days", "30", "-addr", ":8080", "-log-level", "info"]

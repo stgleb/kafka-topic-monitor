@@ -3,19 +3,11 @@ package monitor
 import (
 	"context"
 	"fmt"
+	"kafka-topic-monitor/pkg/monitor/report"
 	"time"
 
 	"github.com/IBM/sarama"
 )
-
-// TopicActivityInfo contains information about the last read and write operations for a topic.
-type TopicActivityInfo struct {
-	TopicName       string    // Name of the topic.
-	LastWriteTime   time.Time // Time when last message was written to any partition.
-	LastReadTime    time.Time // Time when message was consumed by any consumer group.
-	PartitionNumber int       // Number of partitions in topic.
-	Active          bool      // Indicates if the topic is active (has recent activity).
-}
 
 type KafkaTopicChecker struct{}
 
@@ -33,8 +25,8 @@ func NewTopicChecker() TopicChecker {
 // - topicName: The name of the Kafka topic to check
 // - kafkaClient: A sarama Kafka client
 // - kafkaAdminClient: A sarama Kafka admin client
-func (c *KafkaTopicChecker) CheckTopic(ctx context.Context, topicName string, kafkaClient sarama.Client, kafkaAdminClient sarama.ClusterAdmin) (*TopicActivityInfo, error) {
-	topicActivityInfo := &TopicActivityInfo{}
+func (c *KafkaTopicChecker) CheckTopic(ctx context.Context, topicName string, kafkaClient sarama.Client, kafkaAdminClient sarama.ClusterAdmin) (*report.TopicActivityInfo, error) {
+	topicActivityInfo := &report.TopicActivityInfo{}
 	// Get topic partitions
 	partitions, err := kafkaClient.Partitions(topicName)
 	if err != nil {

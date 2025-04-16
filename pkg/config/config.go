@@ -3,9 +3,9 @@ package config
 import (
 	"errors"
 	"fmt"
-	"os"
-
 	"gopkg.in/yaml.v3"
+	"os"
+	"strings"
 
 	. "kafka-topic-monitor/pkg/logger"
 )
@@ -23,34 +23,40 @@ type Config struct {
 }
 
 // LoadConfig loads configuration from a YAML file or from environment variables
-func LoadConfig(configFileName string) (*Config, error) {
-	config := Config{
+func LoadConfig(bootstrapServers string, inactivityDays int, logLvl, addr string, configFileName string) (*Config, error) {
+	config := &Config{
 		InactivityDays: 7,
 	}
 
 	// Load from file first
-	err := loadFromFile(configFileName, &config)
+	err := loadFromFile(configFileName, config)
 	if err != nil {
 		GetLogger().Warnf("Error loading config file %s: %v", configFileName, err)
 	}
 	// Load from env as bigger priority.
 	loadFromEnv(config)
-	if config.BootstrapServers == nil {
-		return nil, ErrEmptyBootstrapServers
+
+	// Override config values with command-line flags if provided as they have higher priority.
+	if bootstrapServers != "" {
+		config.BootstrapServers = strings.Split(bootstrapServers, ",")
 	}
 
-	if config.InactivityDays < 0 {
-		return nil, fmt.Errorf("inactivity days must be non-negative")
+	if inactivityDays > 0 {
+		config.InactivityDays = inactivityDays
 	}
 
-	if config.Addr == "" {
-		config.Addr = ":8080"
+	if logLvl != "" {
+		config.LogLevel = logLvl
 	}
 
-	return &config, nil
+	if addr != "" {
+		config.Addr = addr
+	}
+
+	return config, nil
 }
 
-func loadFromEnv(config Config) {
+func loadFromEnv(config *Config) {
 	// Override with environment variables if they exist
 	if bootstrapServers := os.Getenv("BOOTSTRAP_SERVERS"); bootstrapServers != "" {
 		config.BootstrapServers = []string{bootstrapServers}

@@ -29,12 +29,10 @@ services:
     depends_on:
       kafka:
         condition: service_healthy  # Wait for Kafka to be healthy before starting the monitor
+    command: ["/monitor", "-bootstrap-servers", "kafka:9092", "-inactivity-days", "30", "-addr", ":8080", "-log-level", "info"]
     image: monitor:latest  # Use the built image
     ports:
       - "8080:8080"        # Map port 8080 of the host to port 8080 of the container
-    environment:
-      # Add any necessary environment variables for the monitor service
-      KAFKA_BOOTSTRAP_SERVERS: "kafka:9092"  # Assuming your Kafka service is named kafk
 
 volumes:
   kafka_data:
